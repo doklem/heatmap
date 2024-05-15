@@ -10,22 +10,45 @@
 </head>
 
 <style>
+    html,
+    body {
+        height: 100%;
+    }
+
     body {
         margin: 0;
         position: relative;
     }
 
+    .help {
+        position: absolute;
+        z-index: 0;
+        top: 50%;
+        left: 50%;
+        margin-right: -50%;
+        transform: translate(-50%, -50%);
+        color: black;
+    }
+
     .display {
-        border-style: solid;
-        border-color: black;
-        border-width: 1px;
+        position: absolute;
+        z-index: 1;
+        width: 100%;
+        height: 100%;
+    }
+
+    .source-link {
+        position: absolute;
+        right: 2px;
+        bottom: 2px;
+        z-index: 2;
     }
 </style>
 
 <body>
-    <div>Hold down the left mouse button and move it over the map</div>
-    <div><canvas id="display" class="display"></canvas></div>
-    <div><a href="https://github.com/doklem/heatmap" target="_blank">Source</a></div>
+    <h1 class="help">Hold down the left mouse button while moving</h1>
+    <canvas class="display" id="display"></canvas>
+    <a class="source-link" href="https://github.com/doklem/heatmap" target="_blank">Source</a>
 </body>
 
 <script src="dist/main.min.js" type="module"></script>

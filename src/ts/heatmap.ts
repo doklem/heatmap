@@ -1,6 +1,5 @@
 import VertexShaderSource from './../shaders/vertex.glsl';
 import FragmentShaderSource from './../shaders/fragment.glsl';
-import { IHeatmapOptions } from './heatmap-options';
 import { ClipSpaceQuad } from './clip-space-quad';
 import { ShaderUtils } from './shader-utils';
 
@@ -10,55 +9,70 @@ export class Heatmap {
     private static readonly MAX_POINTS_HEIGHT = 100;
     private static readonly MAX_POINTS = Heatmap.MAX_POINTS_WIDTH * Heatmap.MAX_POINTS_HEIGHT;
 
-    private readonly _points: WebGLUniformLocation;
-    private readonly _pointMin: WebGLUniformLocation;
-    private readonly _pointMax: WebGLUniformLocation;
-    private readonly _heatMin: WebGLUniformLocation;
-    private readonly _heatMax: WebGLUniformLocation;
-    private readonly _colorCold: WebGLUniformLocation;
-    private readonly _colorHot: WebGLUniformLocation;
-    private readonly _alphaMin: WebGLUniformLocation;
-    private readonly _alphaMax: WebGLUniformLocation;
-    private readonly _alphaStrength: WebGLUniformLocation;
-    private readonly _vertexPosition: number;
+    private readonly _pointsTextureLocation: WebGLUniformLocation;
+    private readonly _pointMinLocation: WebGLUniformLocation;
+    private readonly _pointMaxLocation: WebGLUniformLocation;
+    private readonly _heatMinLocation: WebGLUniformLocation;
+    private readonly _heatMaxLocation: WebGLUniformLocation;
+    private readonly _colorColdLocation: WebGLUniformLocation;
+    private readonly _colorHotLocation: WebGLUniformLocation;
+    private readonly _alphaMinLocation: WebGLUniformLocation;
+    private readonly _alphaMaxLocation: WebGLUniformLocation;
+    private readonly _alphaStrengthLocation: WebGLUniformLocation;
+    private readonly _vertexPositionLocation: number;
     private readonly _shaderProgram: WebGLProgram;
     private readonly _quad: ClipSpaceQuad;
     private readonly _pointsTexture: WebGLTexture;
     private readonly _pointsTextureData: Float32Array;
 
-    private _pointsDataIndex: number;
-    private _pointsChanged: boolean;
+    private _pointsDataIndex = 0;
+    private _pointsChanged = true;
+    
+    public transparencyMinimum = 0;
+    public transparencyRange = 10;
+    public transparencyStrength = 1;
+    public pointSize = 0;
+    public pointRange = 0.1;
+    public heatMinimum = 10;
+    public heatRange = 100;
+    public readonly colorCold = {
+        r: 0,
+        g: 0,
+        b: 1,
+    };
+    public readonly colorHot = {
+        r: 1,
+        g: 0,
+        b: 0,
+    };
 
-    public readonly options: IHeatmapOptions
+    public get resolutionWidth(): number {
+        return this._gl.canvas.width;
+    }
+
+    public set resolutionWidth(value: number) {
+        this._gl.canvas.width = value;
+        this._gl.viewport(0, 0, this._gl.drawingBufferWidth, this._gl.drawingBufferHeight);
+    }
+
+    public get resolutionHeight(): number {
+        return this._gl.canvas.height;
+    }
+
+    public set resolutionHeight(value: number) {
+        this._gl.canvas.height = value;
+        this._gl.viewport(0, 0, this._gl.drawingBufferWidth, this._gl.drawingBufferHeight);
+    }
 
     constructor(private readonly _gl: WebGL2RenderingContext) {
-        this.options = {
-            transparencyMinimum: 0,
-            transparencyRange: 10,
-            transparencyStrength: 1,
-            pointSize: 0,
-            pointRange: 0.1,
-            heatMinimum: 10,
-            heatRange: 100,
-            colorCold: {
-                r: 0,
-                g: 0,
-                b: 1,
-            },
-            colorHot: {
-                r: 1,
-                g: 0,
-                b: 0,
-            },
-        };
+        this.resolutionWidth = 128;
+        this.resolutionHeight = 128;
 
         // Create a data texture.
         this._pointsTexture = this.initializePointsTexture();
 
-        this._pointsDataIndex = 0;
         this._pointsTextureData = new Float32Array(Heatmap.MAX_POINTS * ClipSpaceQuad.POSITION_COMPONENT_NUMBER);
         this._pointsTextureData.fill(ClipSpaceQuad.CLIP_SPACE_RANGE * 10); // Some point outside the view
-        this._pointsChanged = true;
 
         // Initialize a shader program; this is where all the lighting
         // for the vertices and so forth is established.
@@ -68,17 +82,17 @@ export class Heatmap {
         // Look up which attributes our shader program is using
         // for aVertexPosition, aVertexColor and also
         // look up uniform locations.
-        this._vertexPosition = _gl.getAttribLocation(this._shaderProgram, 'aVertexPosition');
-        this._points = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uPointsTexture');
-        this._pointMin = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uPointMin');
-        this._pointMax = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uPointMax');
-        this._heatMin = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uHeatMin');
-        this._heatMax = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uHeatMax');
-        this._colorCold = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uColorCold');
-        this._colorHot = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uColorHot');
-        this._alphaMin = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uAlphaMin');
-        this._alphaMax = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uAlphaMax');
-        this._alphaStrength = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uAlphaStrength');
+        this._vertexPositionLocation = _gl.getAttribLocation(this._shaderProgram, 'aVertexPosition');
+        this._pointsTextureLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uPointsTexture');
+        this._pointMinLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uPointMin');
+        this._pointMaxLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uPointMax');
+        this._heatMinLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uHeatMin');
+        this._heatMaxLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uHeatMax');
+        this._colorColdLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uColorCold');
+        this._colorHotLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uColorHot');
+        this._alphaMinLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uAlphaMin');
+        this._alphaMaxLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uAlphaMax');
+        this._alphaStrengthLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uAlphaStrength');
 
         // Here's where we call the routine that builds all the
         // objects we'll be drawing.
@@ -91,7 +105,7 @@ export class Heatmap {
 
     public addPoint(x: number, y: number): void {
         this._pointsTextureData.set(
-            this._quad.toClipSpaceCoordinate(x, y),
+            ClipSpaceQuad.toClipSpaceCoordinate(x, y, this.resolutionWidth, this.resolutionHeight),
             this._pointsDataIndex * ClipSpaceQuad.POSITION_COMPONENT_NUMBER);
         this._pointsDataIndex = (this._pointsDataIndex + 1) % Heatmap.MAX_POINTS;
         this._pointsChanged = true;
@@ -114,39 +128,39 @@ export class Heatmap {
 
     private applyUniforms(): void {
         this._gl.uniform1f(
-            this._pointMin,
-            this.options.pointSize);
+            this._pointMinLocation,
+            this.pointSize);
         this._gl.uniform1f(
-            this._pointMax,
-            this.options.pointSize + this.options.pointRange);
+            this._pointMaxLocation,
+            this.pointSize + this.pointRange);
         this._gl.uniform1f(
-            this._heatMin,
-            this.options.heatMinimum);
+            this._heatMinLocation,
+            this.heatMinimum);
         this._gl.uniform1f(
-            this._heatMax,
-            this.options.heatMinimum + this.options.heatRange);
+            this._heatMaxLocation,
+            this.heatMinimum + this.heatRange);
         this._gl.uniform3f(
-            this._colorCold,
-            this.options.colorCold.r,
-            this.options.colorCold.g,
-            this.options.colorCold.b);
+            this._colorColdLocation,
+            this.colorCold.r,
+            this.colorCold.g,
+            this.colorCold.b);
         this._gl.uniform3f(
-            this._colorHot,
-            this.options.colorHot.r,
-            this.options.colorHot.g,
-            this.options.colorHot.b);
+            this._colorHotLocation,
+            this.colorHot.r,
+            this.colorHot.g,
+            this.colorHot.b);
         this._gl.uniform1f(
-            this._alphaMin,
-            this.options.transparencyMinimum);
+            this._alphaMinLocation,
+            this.transparencyMinimum);
         this._gl.uniform1f(
-            this._alphaMax,
-            this.options.transparencyMinimum + this.options.transparencyRange);
+            this._alphaMaxLocation,
+            this.transparencyMinimum + this.transparencyRange);
         this._gl.uniform1f(
-            this._alphaStrength,
-            this.options.transparencyStrength);
+            this._alphaStrengthLocation,
+            this.transparencyStrength);
 
         // Tell the shader to use texture unit 0 for uPointsTexture
-        this._gl.uniform1i(this._points, 0);
+        this._gl.uniform1i(this._pointsTextureLocation, 0);
     }
 
     private clearScene(): void {
@@ -171,7 +185,7 @@ export class Heatmap {
         this._gl.texParameteri(this._gl.TEXTURE_2D, this._gl.TEXTURE_MAG_FILTER, this._gl.NEAREST);
         this._gl.texParameteri(this._gl.TEXTURE_2D, this._gl.TEXTURE_WRAP_S, this._gl.CLAMP_TO_EDGE);
         this._gl.texParameteri(this._gl.TEXTURE_2D, this._gl.TEXTURE_WRAP_T, this._gl.CLAMP_TO_EDGE);
-        
+
         return texture;
     }
 
@@ -181,14 +195,14 @@ export class Heatmap {
     private setPositionAttribute(): void {
         this._gl.bindBuffer(this._gl.ARRAY_BUFFER, this._quad.positions);
         this._gl.vertexAttribPointer(
-            this._vertexPosition,
+            this._vertexPositionLocation,
             ClipSpaceQuad.POSITION_COMPONENT_NUMBER,
             this._gl.FLOAT, // the data in the buffer is 32bit floats
             false, // don't normalize
             0, // how many bytes to get from one set of values to the next -> 0 = use type and numComponents above
             0 // how many bytes inside the buffer to start from
         );
-        this._gl.enableVertexAttribArray(this._vertexPosition);
+        this._gl.enableVertexAttribArray(this._vertexPositionLocation);
     }
 
     private writeToPointsTexture(): void {

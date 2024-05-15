@@ -40,10 +40,10 @@ export class ClipSpaceQuad {
         this._gl.drawArrays(this._gl.TRIANGLE_STRIP, ClipSpaceQuad.VERTEX_OFFSET, ClipSpaceQuad.VERTEX_COUNT);
     }
 
-    public toClipSpaceCoordinate(x: number, y: number): number[] {
+    public static toClipSpaceCoordinate(x: number, y: number, viewportWidth: number, viewportHeight: number): number[] {
         return [
-            ClipSpaceQuad.CLIP_SPACE_MIN + x / this._gl.canvas.width * ClipSpaceQuad.CLIP_SPACE_RANGE,
-            ClipSpaceQuad.CLIP_SPACE_MAX - y / this._gl.canvas.height * ClipSpaceQuad.CLIP_SPACE_RANGE
+            ClipSpaceQuad.CLIP_SPACE_MIN + x / viewportWidth * ClipSpaceQuad.CLIP_SPACE_RANGE,
+            ClipSpaceQuad.CLIP_SPACE_MAX - y / viewportHeight * ClipSpaceQuad.CLIP_SPACE_RANGE
         ];
     }
 }
