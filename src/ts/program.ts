@@ -47,15 +47,15 @@ export class Program {
                 width: 300,
             }
         );
-        gui.add(this._heatmap, 'pointSize', 0, 2, 0.01).name('Point Size');
-        gui.add(this._heatmap, 'pointRange', 0, 2, 0.01).name('Point Range');
-        gui.add(this._heatmap, 'heatMinimum', 0, 100, 0.1).name('Heat Minimum');
-        gui.add(this._heatmap, 'heatRange', 0, 1000, 0.1).name('Heat Range');
-        gui.addColor(this._heatmap, 'colorCold').name('Color Cold');
-        gui.addColor(this._heatmap, 'colorHot').name('Color Hot');
-        gui.add(this._heatmap, 'transparencyMinimum', 0, 100, 0.1).name('Transparency Minimum');
-        gui.add(this._heatmap, 'transparencyRange', 0, 1000, 0.1).name('Transparency Range');
-        gui.add(this._heatmap, 'transparencyStrength', 0, 1, 0.01).name('Transparency Strength');
+        gui.add(this._heatmap.options, 'pointSize', 0, 2, 0.01).name('Point Size');
+        gui.add(this._heatmap.options, 'pointRange', 0, 2, 0.01).name('Point Range');
+        gui.add(this._heatmap.options, 'heatMinimum', 0, 100, 0.1).name('Heat Minimum');
+        gui.add(this._heatmap.options, 'heatRange', 0, 1000, 0.1).name('Heat Range');
+        gui.addColor(this._heatmap.options, 'colorCold').name('Color Cold');
+        gui.addColor(this._heatmap.options, 'colorHot').name('Color Hot');
+        gui.add(this._heatmap.options, 'transparencyMinimum', 0, 100, 0.1).name('Transparency Minimum');
+        gui.add(this._heatmap.options, 'transparencyRange', 0, 1000, 0.1).name('Transparency Range');
+        gui.add(this._heatmap.options, 'transparencyStrength', 0, 1, 0.01).name('Transparency Strength');
         return gui;
     }
 

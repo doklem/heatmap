@@ -2,7 +2,7 @@
 
 const int cPointsCount = 1000;
 
-uniform lowp vec2 uPoints[cPointsCount];
+uniform lowp vec2 uPoints[cPointsCount]; //ToDo: Use a data texture instead
 uniform lowp float uPointMin;
 uniform lowp float uPointMax;
 uniform lowp float uHeatMin;
