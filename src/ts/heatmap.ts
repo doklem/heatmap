@@ -14,10 +14,10 @@ export class Heatmap {
 
     //A triangle strips -> https://webglfundamentals.org/webgl/lessons/webgl-points-lines-triangles.html
     private readonly _vertices = new Float32Array([
-        -1, 1,
-        -1, -1,
-        1, 1,
-        1, -1
+        Heatmap.CLIP_SPACE_MIN, Heatmap.CLIP_SPACE_MAX,
+        Heatmap.CLIP_SPACE_MIN, Heatmap.CLIP_SPACE_MIN,
+        Heatmap.CLIP_SPACE_MAX, Heatmap.CLIP_SPACE_MAX,
+        Heatmap.CLIP_SPACE_MAX, Heatmap.CLIP_SPACE_MIN
     ]);
     private readonly _points: WebGLUniformLocation;
     private readonly _pointMin: WebGLUniformLocation;
@@ -36,9 +36,28 @@ export class Heatmap {
 
     private _pointsDataIndex: number;
 
-    constructor(
-        private readonly _gl: WebGL2RenderingContext,
-        public readonly options: IHeatmapOptions) {
+    public readonly options: IHeatmapOptions
+
+    constructor(private readonly _gl: WebGL2RenderingContext) {
+        this.options = {
+            transparencyMinimum: 0,
+            transparencyRange: 10,
+            transparencyStrength: 1,
+            pointSize: 0,
+            pointRange: 0.4,
+            heatMinimum: 10,
+            heatRange: 100,
+            colorCold: {
+                r: 0,
+                g: 0,
+                b: 1,
+            },
+            colorHot: {
+                r: 1,
+                g: 0,
+                b: 0,
+            },
+        };
 
         // Initialize a shader program; this is where all the lighting
         // for the vertices and so forth is established.
