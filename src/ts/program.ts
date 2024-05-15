@@ -28,7 +28,7 @@ export class Program {
     }
 
     /**
-     * Draw the scene.
+     * Draw loop.
      */
     public main(): void {
         requestAnimationFrame(() => {
@@ -64,7 +64,7 @@ export class Program {
             return;
         }
         var rect = this._display.getBoundingClientRect();
-        this._heatmap?.addPoint(evt.clientX - rect.left, evt.clientY - rect.top);
+        this._heatmap.addPoint(evt.clientX - rect.left, evt.clientY - rect.top);
         evt.stopImmediatePropagation();
     }
 }
