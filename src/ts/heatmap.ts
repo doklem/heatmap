@@ -14,8 +14,6 @@ export class Heatmap {
     private readonly _pointMaxLocation: WebGLUniformLocation;
     private readonly _heatMinLocation: WebGLUniformLocation;
     private readonly _heatMaxLocation: WebGLUniformLocation;
-    private readonly _colorColdLocation: WebGLUniformLocation;
-    private readonly _colorHotLocation: WebGLUniformLocation;
     private readonly _alphaMinLocation: WebGLUniformLocation;
     private readonly _alphaMaxLocation: WebGLUniformLocation;
     private readonly _alphaStrengthLocation: WebGLUniformLocation;
@@ -24,10 +22,12 @@ export class Heatmap {
     private readonly _quad: ClipSpaceQuad;
     private readonly _pointsTexture: WebGLTexture;
     private readonly _pointsTextureData: Float32Array;
+    private readonly _heatGradientTexture: WebGLTexture;
+    private readonly _heatGradientTextureLocation: WebGLUniformLocation;
 
     private _pointsDataIndex = 0;
     private _pointsChanged = true;
-    
+
     public transparencyMinimum = 0;
     public transparencyRange = 10;
     public transparencyStrength = 1;
@@ -35,16 +35,6 @@ export class Heatmap {
     public pointRange = 0.1;
     public heatMinimum = 10;
     public heatRange = 100;
-    public readonly colorCold = {
-        r: 0,
-        g: 0,
-        b: 1,
-    };
-    public readonly colorHot = {
-        r: 1,
-        g: 0,
-        b: 0,
-    };
 
     public get resolutionWidth(): number {
         return this._gl.canvas.width;
@@ -68,12 +58,6 @@ export class Heatmap {
         this.resolutionWidth = 128;
         this.resolutionHeight = 128;
 
-        // Create a data texture.
-        this._pointsTexture = this.initializePointsTexture();
-
-        this._pointsTextureData = new Float32Array(Heatmap.MAX_POINTS * ClipSpaceQuad.POSITION_COMPONENT_NUMBER);
-        this._pointsTextureData.fill(ClipSpaceQuad.CLIP_SPACE_RANGE * 10); // Some point outside the view
-
         // Initialize a shader program; this is where all the lighting
         // for the vertices and so forth is established.
         this._shaderProgram = ShaderUtils.initializeShaderProgram(_gl, VertexShaderSource, FragmentShaderSource);
@@ -84,15 +68,20 @@ export class Heatmap {
         // look up uniform locations.
         this._vertexPositionLocation = _gl.getAttribLocation(this._shaderProgram, 'aVertexPosition');
         this._pointsTextureLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uPointsTexture');
+        this._heatGradientTextureLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uHeatTexture');
         this._pointMinLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uPointMin');
         this._pointMaxLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uPointMax');
         this._heatMinLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uHeatMin');
         this._heatMaxLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uHeatMax');
-        this._colorColdLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uColorCold');
-        this._colorHotLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uColorHot');
         this._alphaMinLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uAlphaMin');
         this._alphaMaxLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uAlphaMax');
         this._alphaStrengthLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uAlphaStrength');
+
+        // Create the textures.
+        this._pointsTexture = this.initializePointsTexture();
+        this._heatGradientTexture = this.initializeHeatGradientTexture();
+        this._pointsTextureData = new Float32Array(Heatmap.MAX_POINTS * ClipSpaceQuad.POSITION_COMPONENT_NUMBER);
+        this._pointsTextureData.fill(ClipSpaceQuad.CLIP_SPACE_RANGE * 1000); // Some point outside the view
 
         // Here's where we call the routine that builds all the
         // objects we'll be drawing.
@@ -127,6 +116,12 @@ export class Heatmap {
     }
 
     private applyUniforms(): void {
+        this._gl.uniform1i(this._pointsTextureLocation, 0);
+        this._gl.uniform1i(this._heatGradientTextureLocation, 1);
+        this._gl.activeTexture(this._gl.TEXTURE0);
+        this._gl.bindTexture(this._gl.TEXTURE_2D, this._pointsTexture);
+        this._gl.activeTexture(this._gl.TEXTURE1);
+        this._gl.bindTexture(this._gl.TEXTURE_2D, this._heatGradientTexture);
         this._gl.uniform1f(
             this._pointMinLocation,
             this.pointSize);
@@ -139,16 +134,6 @@ export class Heatmap {
         this._gl.uniform1f(
             this._heatMaxLocation,
             this.heatMinimum + this.heatRange);
-        this._gl.uniform3f(
-            this._colorColdLocation,
-            this.colorCold.r,
-            this.colorCold.g,
-            this.colorCold.b);
-        this._gl.uniform3f(
-            this._colorHotLocation,
-            this.colorHot.r,
-            this.colorHot.g,
-            this.colorHot.b);
         this._gl.uniform1f(
             this._alphaMinLocation,
             this.transparencyMinimum);
@@ -158,9 +143,6 @@ export class Heatmap {
         this._gl.uniform1f(
             this._alphaStrengthLocation,
             this.transparencyStrength);
-
-        // Tell the shader to use texture unit 0 for uPointsTexture
-        this._gl.uniform1i(this._pointsTextureLocation, 0);
     }
 
     private clearScene(): void {
@@ -186,6 +168,42 @@ export class Heatmap {
         this._gl.texParameteri(this._gl.TEXTURE_2D, this._gl.TEXTURE_WRAP_S, this._gl.CLAMP_TO_EDGE);
         this._gl.texParameteri(this._gl.TEXTURE_2D, this._gl.TEXTURE_WRAP_T, this._gl.CLAMP_TO_EDGE);
 
+        return texture;
+    }
+
+    private initializeHeatGradientTexture(): WebGLTexture {
+        // Create a texture.
+        var texture = this._gl.createTexture();
+        if (texture === null) {
+            throw new Error('Unable to load heat gradient texture');
+        }
+        this._gl.bindTexture(this._gl.TEXTURE_2D, texture);
+
+        // set the filtering so we don't need mips and it's not filtered
+        this._gl.texParameteri(this._gl.TEXTURE_2D, this._gl.TEXTURE_MIN_FILTER, this._gl.NEAREST);
+        this._gl.texParameteri(this._gl.TEXTURE_2D, this._gl.TEXTURE_MAG_FILTER, this._gl.NEAREST);
+        this._gl.texParameteri(this._gl.TEXTURE_2D, this._gl.TEXTURE_WRAP_S, this._gl.CLAMP_TO_EDGE);
+        this._gl.texParameteri(this._gl.TEXTURE_2D, this._gl.TEXTURE_WRAP_T, this._gl.CLAMP_TO_EDGE);
+
+        // Fill the texture with a 1x1 white pixel.
+        this._gl.texImage2D(this._gl.TEXTURE_2D, 0, this._gl.RGB, 1, 1, 0, this._gl.RGB, this._gl.UNSIGNED_BYTE,
+            new Uint8Array([255, 255, 255, 255]));
+
+        // Asynchronously load an image
+        var image = new Image();
+        image.src = 'dist/assets/heat-gradient.png';
+        image.addEventListener('load', () => {
+            // Now that the image has loaded, copy it to the texture.
+            this._gl.bindTexture(this._gl.TEXTURE_2D, texture);
+
+            // set the filtering so we don't need mips and it's not filtered
+            this._gl.texParameteri(this._gl.TEXTURE_2D, this._gl.TEXTURE_MIN_FILTER, this._gl.NEAREST);
+            this._gl.texParameteri(this._gl.TEXTURE_2D, this._gl.TEXTURE_MAG_FILTER, this._gl.NEAREST);
+            this._gl.texParameteri(this._gl.TEXTURE_2D, this._gl.TEXTURE_WRAP_S, this._gl.CLAMP_TO_EDGE);
+            this._gl.texParameteri(this._gl.TEXTURE_2D, this._gl.TEXTURE_WRAP_T, this._gl.CLAMP_TO_EDGE);
+
+            this._gl.texImage2D(this._gl.TEXTURE_2D, 0, this._gl.RGB, this._gl.RGB, this._gl.UNSIGNED_BYTE, image);
+        }, { once: true });
         return texture;
     }
 
