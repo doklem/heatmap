@@ -35,7 +35,7 @@ export class Heatmap {
     public pointSize = 0.02;
     public pointRange = 0.2;
     public heatMinimum = 10;
-    public heatRange = 400;
+    public heatRange = 100;
 
     public get resolutionWidth(): number {
         return this._gl.canvas.width;
