@@ -1,72 +1,112 @@
 import VertexShaderSource from './../shaders/vertex.glsl';
 import FragmentShaderSource from './../shaders/fragment.glsl';
-import { IHeatmapOptions } from './heatmap-options';
+import { ClipSpaceQuad } from './clip-space-quad';
+import { ShaderUtils } from './shader-utils';
+import { TextureWrapper } from './texture-wrapper';
 
 export class Heatmap {
 
-    private static readonly VERTEX_COUNT = 4; // A quad made of strip with two triangles
-    private static readonly POSITION_COMPONENT_NUMBER = 2; // pull out 2 values per iteration
-    private static readonly VERTEX_OFFSET = 0;
-    private static readonly CLIP_SPACE_MIN = -1;
-    private static readonly CLIP_SPACE_MAX = 1;
-    private static readonly CLIP_SPACE_RANGE = Heatmap.CLIP_SPACE_MAX - Heatmap.CLIP_SPACE_MIN;
-    private static readonly MAX_POINTS = 1000;
+    private static readonly MAX_POINTS_WIDTH = 100;
+    private static readonly MAX_POINTS_HEIGHT = 100;
+    private static readonly MAX_POINTS = Heatmap.MAX_POINTS_WIDTH * Heatmap.MAX_POINTS_HEIGHT;
 
-    //A triangle strips -> https://webglfundamentals.org/webgl/lessons/webgl-points-lines-triangles.html
-    private readonly _vertices = new Float32Array([
-        -1, 1,
-        -1, -1,
-        1, 1,
-        1, -1
-    ]);
-    private readonly _points: WebGLUniformLocation;
-    private readonly _pointMin: WebGLUniformLocation;
-    private readonly _pointMax: WebGLUniformLocation;
-    private readonly _heatMin: WebGLUniformLocation;
-    private readonly _heatMax: WebGLUniformLocation;
-    private readonly _colorCold: WebGLUniformLocation;
-    private readonly _colorHot: WebGLUniformLocation;
-    private readonly _alphaMin: WebGLUniformLocation;
-    private readonly _alphaMax: WebGLUniformLocation;
-    private readonly _alphaStrength: WebGLUniformLocation;
-    private readonly _vertexPosition: number;
-    private readonly _positions: WebGLBuffer;
+    private readonly _pointsTextureLocation: WebGLUniformLocation;
+    private readonly _pointMinLocation: WebGLUniformLocation;
+    private readonly _pointMaxLocation: WebGLUniformLocation;
+    private readonly _heatMinLocation: WebGLUniformLocation;
+    private readonly _heatMaxLocation: WebGLUniformLocation;
+    private readonly _alphaMinLocation: WebGLUniformLocation;
+    private readonly _alphaMaxLocation: WebGLUniformLocation;
+    private readonly _alphaStrengthLocation: WebGLUniformLocation;
+    private readonly _vertexPositionLocation: number;
     private readonly _shaderProgram: WebGLProgram;
-    private readonly _pointsData: Float32Array;
+    private readonly _quad: ClipSpaceQuad;
+    private readonly _pointsTexture: TextureWrapper;
+    private readonly _pointsTextureData: Float32Array;
+    private readonly _heatGradientTexture: TextureWrapper;
+    private readonly _heatGradientTextureLocation: WebGLUniformLocation;
 
-    private _pointsDataIndex: number;
+    private _pointsDataIndex = 0;
+    private _pointsChanged = true;
 
-    constructor(
-        private readonly _gl: WebGL2RenderingContext,
-        public readonly options: IHeatmapOptions) {
+    public transparencyMinimum = 0;
+    public transparencyRange = 10;
+    public transparencyStrength = 1;
+    public pointSize = 0.02;
+    public pointRange = 0.2;
+    public heatMinimum = 10;
+    public heatRange = 400;
+
+    public get resolutionWidth(): number {
+        return this._gl.canvas.width;
+    }
+
+    public set resolutionWidth(value: number) {
+        this._gl.canvas.width = value;
+        this._gl.viewport(0, 0, this._gl.drawingBufferWidth, this._gl.drawingBufferHeight);
+    }
+
+    public get resolutionHeight(): number {
+        return this._gl.canvas.height;
+    }
+
+    public set resolutionHeight(value: number) {
+        this._gl.canvas.height = value;
+        this._gl.viewport(0, 0, this._gl.drawingBufferWidth, this._gl.drawingBufferHeight);
+    }
+
+    constructor(private readonly _gl: WebGL2RenderingContext) {
+        this.resolutionWidth = 128;
+        this.resolutionHeight = 128;
 
         // Initialize a shader program; this is where all the lighting
         // for the vertices and so forth is established.
-        this._shaderProgram = this.initializeShaderProgram();
+        this._shaderProgram = ShaderUtils.initializeShaderProgram(_gl, VertexShaderSource, FragmentShaderSource);
 
         // Collect all the info needed to use the shader program.
         // Look up which attributes our shader program is using
         // for aVertexPosition, aVertexColor and also
         // look up uniform locations.
-        this._vertexPosition = _gl.getAttribLocation(this._shaderProgram, 'aVertexPosition');
-        this._points = this.getUniformLocationThrowing('uPoints');
-        this._pointMin = this.getUniformLocationThrowing('uPointMin');
-        this._pointMax = this.getUniformLocationThrowing('uPointMax');
-        this._heatMin = this.getUniformLocationThrowing('uHeatMin');
-        this._heatMax = this.getUniformLocationThrowing('uHeatMax');
-        this._colorCold = this.getUniformLocationThrowing('uColorCold');
-        this._colorHot = this.getUniformLocationThrowing('uColorHot');
-        this._alphaMin = this.getUniformLocationThrowing('uAlphaMin');
-        this._alphaMax = this.getUniformLocationThrowing('uAlphaMax');
-        this._alphaStrength = this.getUniformLocationThrowing('uAlphaStrength');
+        this._vertexPositionLocation = _gl.getAttribLocation(this._shaderProgram, 'aVertexPosition');
+        this._pointsTextureLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uPointsTexture');
+        this._heatGradientTextureLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uHeatTexture');
+        this._pointMinLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uPointMin');
+        this._pointMaxLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uPointMax');
+        this._heatMinLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uHeatMin');
+        this._heatMaxLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uHeatMax');
+        this._alphaMinLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uAlphaMin');
+        this._alphaMaxLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uAlphaMax');
+        this._alphaStrengthLocation = ShaderUtils.getUniformLocationThrowing(_gl, this._shaderProgram, 'uAlphaStrength');
+
+        // Create the textures.
+        this._heatGradientTexture = new TextureWrapper(
+            _gl,
+            _gl.TEXTURE_2D,
+            _gl.LINEAR,
+            _gl.CLAMP_TO_EDGE,
+            0, // Use the base level, since we do not want to use mips.
+            _gl.RGB,
+            _gl.RGB,
+            _gl.UNSIGNED_BYTE
+        );
+        this._heatGradientTexture.loadFormImage('dist/assets/heat-gradient.png');
+        this._pointsTexture = new TextureWrapper(
+            _gl,
+            _gl.TEXTURE_2D,
+            _gl.NEAREST,
+            _gl.CLAMP_TO_EDGE,
+            0, // Use the base level, since we do not want to use mips.
+            _gl.RG32F, // Only two channels are needed to represent a 2D coordinate
+            _gl.RG,
+            _gl.FLOAT,
+            1
+        );
+        this._pointsTextureData = new Float32Array(Heatmap.MAX_POINTS * ClipSpaceQuad.POSITION_COMPONENT_NUMBER);
+        this._pointsTextureData.fill(ClipSpaceQuad.CLIP_SPACE_RANGE * 1000); // Some point outside the view
 
         // Here's where we call the routine that builds all the
         // objects we'll be drawing.
-        this._positions = this.initializePositionBuffer();
-
-        this._pointsDataIndex = 0;
-        this._pointsData = new Float32Array(Heatmap.MAX_POINTS * Heatmap.POSITION_COMPONENT_NUMBER);
-        this._pointsData.fill(Heatmap.CLIP_SPACE_RANGE * 10); // Some point outside the view
+        this._quad = new ClipSpaceQuad(_gl);
 
         // Tell WebGL how to pull out the positions from the position
         // buffer into the vertexPosition attribute.
@@ -74,148 +114,38 @@ export class Heatmap {
     }
 
     public addPoint(x: number, y: number): void {
-        this._pointsData.set(
-            [
-                Heatmap.CLIP_SPACE_MIN + x / this._gl.canvas.width * Heatmap.CLIP_SPACE_RANGE,
-                Heatmap.CLIP_SPACE_MAX - y / this._gl.canvas.height * Heatmap.CLIP_SPACE_RANGE
-            ],
-            this._pointsDataIndex * Heatmap.POSITION_COMPONENT_NUMBER);
+        this._pointsTextureData.set(
+            ClipSpaceQuad.toClipSpaceCoordinate(x, y, this.resolutionWidth, this.resolutionHeight),
+            this._pointsDataIndex * ClipSpaceQuad.POSITION_COMPONENT_NUMBER);
         this._pointsDataIndex = (this._pointsDataIndex + 1) % Heatmap.MAX_POINTS;
+        this._pointsChanged = true;
     }
 
     public drawScene(): void {
+        if (this._pointsChanged) {
+            this._pointsChanged = false;
+            this._pointsTexture.loadFromArray(this._pointsTextureData, Heatmap.MAX_POINTS_WIDTH, Heatmap.MAX_POINTS_HEIGHT);
+        }
         // Clear the canvas before we start drawing on it.
         this.clearScene();
-
-        // Tell WebGL to use our program when drawing
+        // Tell WebGL to use our program when drawing.
         this._gl.useProgram(this._shaderProgram);
-
-        // Set the shader uniforms
-        this._gl.uniform2fv(
-            this._points,
-            this._pointsData);
-        this._gl.uniform1f(
-            this._pointMin,
-            this.options.pointSize);
-        this._gl.uniform1f(
-            this._pointMax,
-            this.options.pointSize + this.options.pointRange);
-        this._gl.uniform1f(
-            this._heatMin,
-            this.options.heatMinimum);
-        this._gl.uniform1f(
-            this._heatMax,
-            this.options.heatMinimum + this.options.heatRange);
-        this._gl.uniform3f(
-            this._colorCold,
-            this.options.colorCold.r,
-            this.options.colorCold.g,
-            this.options.colorCold.b);
-        this._gl.uniform3f(
-            this._colorHot,
-            this.options.colorHot.r,
-            this.options.colorHot.g,
-            this.options.colorHot.b);
-        this._gl.uniform1f(
-            this._alphaMin,
-            this.options.transparencyMinimum);
-        this._gl.uniform1f(
-            this._alphaMax,
-            this.options.transparencyMinimum + this.options.transparencyRange);
-        this._gl.uniform1f(
-            this._alphaStrength,
-            this.options.transparencyStrength);
-
-        this._gl.drawArrays(this._gl.TRIANGLE_STRIP, Heatmap.VERTEX_OFFSET, Heatmap.VERTEX_COUNT);
+        // Set the shader uniforms.
+        this.applyUniforms();
+        // Draw the scene.
+        this._quad.draw();
     }
 
-    private getUniformLocationThrowing(name: string): WebGLUniformLocation {
-        const location = this._gl.getUniformLocation(this._shaderProgram, name);
-        if (location === null) {
-            throw new Error(`Failed to obtain the location of the uniform ${name}`);
-        }
-        return location;
-    }
-
-    /**
-     * Initialize a shader program, so WebGL knows how to draw our data.
-     */
-    private initializeShaderProgram(): WebGLProgram {
-        const vertexShader = this.loadShader(this._gl.VERTEX_SHADER, VertexShaderSource);
-        const fragmentShader = this.loadShader(this._gl.FRAGMENT_SHADER, FragmentShaderSource);
-
-        // Create the shader program  
-        const shaderProgram = this._gl.createProgram();
-        if (shaderProgram === null) {
-            throw new Error('Unable to create shader program');
-        }
-        this._gl.attachShader(shaderProgram, vertexShader);
-        this._gl.attachShader(shaderProgram, fragmentShader);
-        this._gl.linkProgram(shaderProgram);
-
-        // If creating the shader program failed, alert  
-        if (!this._gl.getProgramParameter(shaderProgram, this._gl.LINK_STATUS)) {
-            throw new Error(`Unable to initialize the shader program: ${this._gl.getProgramInfoLog(shaderProgram)}`);
-        }
-        return shaderProgram;
-    }
-
-    /**
-     * Creates a shader of the given type, uploads the source and compiles it.
-     */
-    private loadShader(type: number, source: string): WebGLShader {
-        const shader = this._gl.createShader(type);
-        if (shader === null) {
-            throw new Error(`Unable to create shader of type: ${type}`);
-        }
-
-        // Send the source to the shader object
-        this._gl.shaderSource(shader, source);
-
-        // Compile the shader program
-        this._gl.compileShader(shader);
-
-        // See if it compiled successfully
-        if (!this._gl.getShaderParameter(shader, this._gl.COMPILE_STATUS)) {
-            const message = `An error occurred compiling the shaders: ${this._gl.getShaderInfoLog(shader)}`;
-            this._gl.deleteShader(shader);
-            throw new Error(message);
-        }
-        return shader;
-    }
-
-    private initializePositionBuffer(): WebGLBuffer {
-        // Create a buffer for the square's positions.
-        const positionBuffer = this._gl.createBuffer();
-        if (positionBuffer === null) {
-            throw new Error('Unable to create the position buffer');
-        }
-
-        // Select the positionBuffer as the one to apply buffer
-        // operations to from here out.
-        this._gl.bindBuffer(this._gl.ARRAY_BUFFER, positionBuffer);
-
-        // Now pass the list of positions into WebGL to build the
-        // shape. We do this by creating a Float32Array from the
-        // JavaScript array, then use it to fill the current buffer.
-        this._gl.bufferData(this._gl.ARRAY_BUFFER, this._vertices, this._gl.STATIC_DRAW);
-        return positionBuffer;
-    }
-
-    /**
-     * Tell WebGL how to pull out the positions from the position buffer into the vertexPosition attribute.
-     */
-    private setPositionAttribute(): void {
-        this._gl.bindBuffer(this._gl.ARRAY_BUFFER, this._positions);
-        this._gl.vertexAttribPointer(
-            this._vertexPosition,
-            Heatmap.POSITION_COMPONENT_NUMBER,
-            this._gl.FLOAT, // the data in the buffer is 32bit floats
-            false, // don't normalize
-            0, // how many bytes to get from one set of values to the next -> 0 = use type and numComponents above
-            0 // how many bytes inside the buffer to start from
-        );
-        this._gl.enableVertexAttribArray(this._vertexPosition);
+    private applyUniforms(): void {
+        this._gl.uniform1f(this._pointMinLocation, Heatmap.toDistanceSquare(this.pointSize));
+        this._gl.uniform1f(this._pointMaxLocation, Heatmap.toDistanceSquare(this.pointSize + this.pointRange));
+        this._gl.uniform1f(this._heatMinLocation, this.heatMinimum);
+        this._gl.uniform1f(this._heatMaxLocation, this.heatMinimum + this.heatRange);
+        this._gl.uniform1f(this._alphaMinLocation, this.transparencyMinimum);
+        this._gl.uniform1f(this._alphaMaxLocation, this.transparencyMinimum + this.transparencyRange);
+        this._gl.uniform1f(this._alphaStrengthLocation, this.transparencyStrength);
+        this._pointsTexture.setUniform(this._pointsTextureLocation, this._gl.TEXTURE0);
+        this._heatGradientTexture.setUniform(this._heatGradientTextureLocation, this._gl.TEXTURE1);
     }
 
     private clearScene(): void {
@@ -224,5 +154,25 @@ export class Heatmap {
         this._gl.enable(this._gl.DEPTH_TEST); // Enable depth testing
         this._gl.depthFunc(this._gl.LEQUAL); // Near things obscure far things
         this._gl.clear(this._gl.COLOR_BUFFER_BIT | this._gl.DEPTH_BUFFER_BIT);
+    }
+
+    /**
+     * Tell WebGL how to pull out the positions from the position buffer into the vertexPosition attribute.
+     */
+    private setPositionAttribute(): void {
+        this._gl.bindBuffer(this._gl.ARRAY_BUFFER, this._quad.positions);
+        this._gl.vertexAttribPointer(
+            this._vertexPositionLocation,
+            ClipSpaceQuad.POSITION_COMPONENT_NUMBER,
+            this._gl.FLOAT, // the data in the buffer is 32bit floats
+            false, // don't normalize
+            0, // how many bytes to get from one set of values to the next -> 0 = use type and numComponents above
+            0 // how many bytes inside the buffer to start from
+        );
+        this._gl.enableVertexAttribArray(this._vertexPositionLocation);
+    }
+
+    private static toDistanceSquare(distance: number): number {
+        return distance * distance;
     }
 }

@@ -1,4 +1,5 @@
 const path = require('path');
+const CopyPlugin = require('copy-webpack-plugin');
 
 module.exports = {
     context: __dirname,
@@ -35,4 +36,11 @@ module.exports = {
     resolve: {
         extensions: ['.ts']
     },
+    plugins: [
+        new CopyPlugin({
+            patterns: [
+                { from: 'src/assets', to: 'assets' },
+            ],
+        })
+    ],   
 }
