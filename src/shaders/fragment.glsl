@@ -17,11 +17,16 @@ in vec2 vPosition;
 
 out vec4 outputColor;
 
+float distanceSquare(vec2 pointA, vec2 pointB) {
+    vec2 delta = abs(pointB - pointA);
+    return delta.x * delta.x + delta.y * delta.y;
+}
+
 void main(void) {
     float heat = 0.f;
     for(float x = 0.f; x < cPointsCount.x; x++) {
         for(float y = 0.f; y < cPointsCount.y; y++) {
-            heat += 1.f - smoothstep(uPointMin, uPointMax, distance( //ToDo: Use distance squared
+            heat += 1.f - smoothstep(uPointMin, uPointMax, distanceSquare(
             vPosition, texture(uPointsTexture, vec2(x, y) / cPointsCount, 0.).xy));
         }
     }

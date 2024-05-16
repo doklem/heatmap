@@ -31,8 +31,8 @@ export class Heatmap {
     public transparencyMinimum = 0;
     public transparencyRange = 10;
     public transparencyStrength = 1;
-    public pointSize = 0;
-    public pointRange = 0.1;
+    public pointSize = 0.02;
+    public pointRange = 0.2;
     public heatMinimum = 10;
     public heatRange = 100;
 
@@ -55,8 +55,8 @@ export class Heatmap {
     }
 
     constructor(private readonly _gl: WebGL2RenderingContext) {
-        this.resolutionWidth = 128;
-        this.resolutionHeight = 128;
+        this.resolutionWidth = 256;
+        this.resolutionHeight = 256;
 
         // Initialize a shader program; this is where all the lighting
         // for the vertices and so forth is established.
@@ -116,33 +116,19 @@ export class Heatmap {
     }
 
     private applyUniforms(): void {
+        this._gl.uniform1f(this._pointMinLocation, Heatmap.toDistanceSquare(this.pointSize));
+        this._gl.uniform1f(this._pointMaxLocation, Heatmap.toDistanceSquare(this.pointSize + this.pointRange));
+        this._gl.uniform1f(this._heatMinLocation, this.heatMinimum);
+        this._gl.uniform1f(this._heatMaxLocation, this.heatMinimum + this.heatRange);
+        this._gl.uniform1f(this._alphaMinLocation, this.transparencyMinimum);
+        this._gl.uniform1f(this._alphaMaxLocation, this.transparencyMinimum + this.transparencyRange);
+        this._gl.uniform1f(this._alphaStrengthLocation, this.transparencyStrength);
         this._gl.uniform1i(this._pointsTextureLocation, 0);
         this._gl.uniform1i(this._heatGradientTextureLocation, 1);
         this._gl.activeTexture(this._gl.TEXTURE0);
         this._gl.bindTexture(this._gl.TEXTURE_2D, this._pointsTexture);
         this._gl.activeTexture(this._gl.TEXTURE1);
         this._gl.bindTexture(this._gl.TEXTURE_2D, this._heatGradientTexture);
-        this._gl.uniform1f(
-            this._pointMinLocation,
-            this.pointSize);
-        this._gl.uniform1f(
-            this._pointMaxLocation,
-            this.pointSize + this.pointRange);
-        this._gl.uniform1f(
-            this._heatMinLocation,
-            this.heatMinimum);
-        this._gl.uniform1f(
-            this._heatMaxLocation,
-            this.heatMinimum + this.heatRange);
-        this._gl.uniform1f(
-            this._alphaMinLocation,
-            this.transparencyMinimum);
-        this._gl.uniform1f(
-            this._alphaMaxLocation,
-            this.transparencyMinimum + this.transparencyRange);
-        this._gl.uniform1f(
-            this._alphaStrengthLocation,
-            this.transparencyStrength);
     }
 
     private clearScene(): void {
@@ -179,9 +165,9 @@ export class Heatmap {
         }
         this._gl.bindTexture(this._gl.TEXTURE_2D, texture);
 
-        // set the filtering so we don't need mips and it's not filtered
-        this._gl.texParameteri(this._gl.TEXTURE_2D, this._gl.TEXTURE_MIN_FILTER, this._gl.NEAREST);
-        this._gl.texParameteri(this._gl.TEXTURE_2D, this._gl.TEXTURE_MAG_FILTER, this._gl.NEAREST);
+        // set the filtering so we don't need mips and it's filtered
+        this._gl.texParameteri(this._gl.TEXTURE_2D, this._gl.TEXTURE_MIN_FILTER, this._gl.LINEAR);
+        this._gl.texParameteri(this._gl.TEXTURE_2D, this._gl.TEXTURE_MAG_FILTER, this._gl.LINEAR);
         this._gl.texParameteri(this._gl.TEXTURE_2D, this._gl.TEXTURE_WRAP_S, this._gl.CLAMP_TO_EDGE);
         this._gl.texParameteri(this._gl.TEXTURE_2D, this._gl.TEXTURE_WRAP_T, this._gl.CLAMP_TO_EDGE);
 
@@ -195,12 +181,6 @@ export class Heatmap {
         image.addEventListener('load', () => {
             // Now that the image has loaded, copy it to the texture.
             this._gl.bindTexture(this._gl.TEXTURE_2D, texture);
-
-            // set the filtering so we don't need mips and it's not filtered
-            this._gl.texParameteri(this._gl.TEXTURE_2D, this._gl.TEXTURE_MIN_FILTER, this._gl.NEAREST);
-            this._gl.texParameteri(this._gl.TEXTURE_2D, this._gl.TEXTURE_MAG_FILTER, this._gl.NEAREST);
-            this._gl.texParameteri(this._gl.TEXTURE_2D, this._gl.TEXTURE_WRAP_S, this._gl.CLAMP_TO_EDGE);
-            this._gl.texParameteri(this._gl.TEXTURE_2D, this._gl.TEXTURE_WRAP_T, this._gl.CLAMP_TO_EDGE);
 
             this._gl.texImage2D(this._gl.TEXTURE_2D, 0, this._gl.RGB, this._gl.RGB, this._gl.UNSIGNED_BYTE, image);
         }, { once: true });
@@ -221,6 +201,10 @@ export class Heatmap {
             0 // how many bytes inside the buffer to start from
         );
         this._gl.enableVertexAttribArray(this._vertexPositionLocation);
+    }
+
+    private static toDistanceSquare(distance: number): number {
+        return distance * distance;
     }
 
     private writeToPointsTexture(): void {
