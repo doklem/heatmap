@@ -27,6 +27,7 @@ export class Program {
         this._scaleY = 0;
         this.onResize(); // Calculate the scale.
         this._display.addEventListener('mousemove', evt => this.onMouseMove(evt));
+        this._display.addEventListener('touchmove', evt => this.onTouchMove(evt));
         window.addEventListener('resize', () => this.onResize());
         this.initiaizeGUI();
     }
@@ -71,6 +72,17 @@ export class Program {
         this._heatmap.addPoint(
             (evt.clientX - rect.left) * this._scaleX,
             (evt.clientY - rect.top) * this._scaleY);
+        evt.stopImmediatePropagation();
+    }
+
+    private onTouchMove(evt: TouchEvent): void {
+        if (evt.touches.length < 1) {
+            return;
+        }
+        var rect = this._display.getBoundingClientRect(); // abs. size of element
+        this._heatmap.addPoint(
+            (evt.touches[0].clientX - rect.left) * this._scaleX,
+            (evt.touches[0].clientY - rect.top) * this._scaleY);
         evt.stopImmediatePropagation();
     }
 
