@@ -1,7 +1,7 @@
 #version 300 es
 precision lowp float;
 
-const vec2 cPointsCount = vec2(100., 100.);
+const vec2 cPointsCount = vec2(100.f, 100.f);
 
 uniform float uPointMin;
 uniform float uPointMax;
@@ -26,12 +26,11 @@ void main(void) {
     float heat = 0.f;
     for(float x = 0.f; x < cPointsCount.x; x++) {
         for(float y = 0.f; y < cPointsCount.y; y++) {
-            heat += 1.f - smoothstep(uPointMin, uPointMax, distanceSquare(
-            vPosition, texture(uPointsTexture, vec2(x, y) / cPointsCount, 0.).xy));
+            heat += 1.f - smoothstep(uPointMin, uPointMax, distanceSquare(vPosition, texture(uPointsTexture, vec2(x, y) / cPointsCount, 0.f).xy));
         }
     }
 
-    vec3 color = texture(uHeatTexture, vec2(0.5f, smoothstep(uHeatMin, uHeatMax, heat)), 0.).xyz;
+    vec3 color = texture(uHeatTexture, vec2(0.5f, smoothstep(uHeatMin, uHeatMax, heat)), 0.f).xyz;
     float alpha = smoothstep(uAlphaMin, uAlphaMax, heat) * uAlphaStrength;
     outputColor = vec4(color, alpha);
 }
