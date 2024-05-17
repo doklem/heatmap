@@ -28,14 +28,77 @@ export class Heatmap {
 
     private _pointsDataIndex = 0;
     private _pointsChanged = true;
+    private _configChanged = true;
+    private _transparencyMinimum = 0;
+    private _transparencyRange = 10;
+    private _transparencyStrength = 1;
+    private _pointSize = 0.02;
+    private _pointRange = 0.2;
+    private _heatMinimum = 10;
+    private _heatRange = 100;
 
-    public transparencyMinimum = 0;
-    public transparencyRange = 10;
-    public transparencyStrength = 1;
-    public pointSize = 0.02;
-    public pointRange = 0.2;
-    public heatMinimum = 10;
-    public heatRange = 100;
+    public get transparencyMinimum(): number {
+        return this._transparencyMinimum;
+    }
+
+    public set transparencyMinimum(value: number) {
+        this._transparencyMinimum = value;
+        this._configChanged = true;
+    }
+
+    public get transparencyRange(): number {
+        return this._transparencyRange;
+    }
+
+    public set transparencyRange(value: number) {
+        this._transparencyRange = value;
+        this._configChanged = true;
+    }
+
+    public get transparencyStrength(): number {
+        return this._transparencyStrength;
+    }
+
+    public set transparencyStrength(value: number) {
+        this._transparencyStrength = value;
+        this._configChanged = true;
+    }
+
+    public get pointSize(): number {
+        return this._pointSize;
+    }
+
+    public set pointSize(value: number) {
+        this._pointSize = value;
+        this._configChanged = true;
+    }
+
+    public get pointRange(): number {
+        return this._pointRange;
+    }
+
+    public set pointRange(value: number) {
+        this._pointRange = value;
+        this._configChanged = true;
+    }
+
+    public get heatMinimum(): number {
+        return this._heatMinimum;
+    }
+
+    public set heatMinimum(value: number) {
+        this._heatMinimum = value;
+        this._configChanged = true;
+    }
+
+    public get heatRange(): number {
+        return this._heatRange;
+    }
+
+    public set heatRange(value: number) {
+        this._heatRange = value;
+        this._configChanged = true;
+    }
 
     public get resolutionWidth(): number {
         return this._gl.canvas.width;
@@ -44,6 +107,7 @@ export class Heatmap {
     public set resolutionWidth(value: number) {
         this._gl.canvas.width = value;
         this._gl.viewport(0, 0, this._gl.drawingBufferWidth, this._gl.drawingBufferHeight);
+        this._configChanged = true;
     }
 
     public get resolutionHeight(): number {
@@ -53,11 +117,14 @@ export class Heatmap {
     public set resolutionHeight(value: number) {
         this._gl.canvas.height = value;
         this._gl.viewport(0, 0, this._gl.drawingBufferWidth, this._gl.drawingBufferHeight);
+        this._configChanged = true;
     }
 
     constructor(private readonly _gl: WebGL2RenderingContext) {
-        this.resolutionWidth = 128;
-        this.resolutionHeight = 128;
+        // Set the initial canvas size.
+        this._gl.canvas.width = 128;
+        this._gl.canvas.height = 128;
+        this._gl.viewport(0, 0, this._gl.drawingBufferWidth, this._gl.drawingBufferHeight);
 
         // Initialize a shader program; this is where all the lighting
         // for the vertices and so forth is established.
@@ -119,9 +186,14 @@ export class Heatmap {
             this._pointsDataIndex * ClipSpaceQuad.POSITION_COMPONENT_NUMBER);
         this._pointsDataIndex = (this._pointsDataIndex + 1) % Heatmap.MAX_POINTS;
         this._pointsChanged = true;
+        this._configChanged = true;
     }
 
     public drawScene(): void {
+        if (!this._configChanged) {
+            return;
+        }
+        this._configChanged = false;
         if (this._pointsChanged) {
             this._pointsChanged = false;
             this._pointsTexture.loadFromArray(this._pointsTextureData, Heatmap.MAX_POINTS_WIDTH, Heatmap.MAX_POINTS_HEIGHT);
