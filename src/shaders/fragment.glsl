@@ -1,7 +1,7 @@
 #version 300 es
 precision lowp float;
 
-const vec2 cPointsCount = vec2(100.f, 100.f);
+const vec2 cPointsCount = vec2(10000.f, 1.f);
 
 uniform float uPointMin;
 uniform float uPointMax;

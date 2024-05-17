@@ -53,6 +53,11 @@ export class TextureWrapper {
         this._gl.texImage2D(this._target, this._level, this._interalFormat, width, height, 0, this._format, this._type, data);
     }
 
+    public loadFromPartialArray(data: ArrayBufferView, x: number, y: number, width: number, height: number): void {
+        this._gl.bindTexture(this._target, this.texture);
+        this._gl.texSubImage2D(this._target, this._level, x, y, width, height, this._format, this._type, data);
+    }
+
     public setUniform(location: WebGLUniformLocation, index: GLenum): void {
         this._gl.uniform1i(location, index - this._gl.TEXTURE0);
         this._gl.activeTexture(index);

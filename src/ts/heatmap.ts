@@ -4,9 +4,7 @@ import { HeatmapOptions } from './heatmap-options';
 
 export class Heatmap {
 
-    private static readonly MAX_POINTS_WIDTH = 100;
-    private static readonly MAX_POINTS_HEIGHT = 100;
-    private static readonly MAX_POINTS = Heatmap.MAX_POINTS_WIDTH * Heatmap.MAX_POINTS_HEIGHT;
+    private static readonly MAX_POINTS = 10000; // Needs to match with the shader's value.
 
     private readonly _heatGradient: HTMLImageElement;
     private readonly _pointsTextureData: Float32Array;
@@ -14,7 +12,6 @@ export class Heatmap {
     private _renderNode?: HeatmapRenderNode;
 
     private _pointsDataIndex = 0;
-    private _pointsChanged = true;
     private _viewportChanged = false;
 
     public get resolutionWidth(): number {
@@ -61,11 +58,11 @@ export class Heatmap {
     }
 
     public addPoint(x: number, y: number): void {
-        this._pointsTextureData.set(
-            ClipSpaceQuad.toClipSpaceCoordinate(x, y, this.resolutionWidth, this.resolutionHeight),
-            this._pointsDataIndex * ClipSpaceQuad.POSITION_COMPONENT_NUMBER);
-        this._pointsDataIndex = (this._pointsDataIndex + 1) % Heatmap.MAX_POINTS;
-        this._pointsChanged = true;
+        const point = new Float32Array(ClipSpaceQuad.toClipSpaceCoordinate(x, y, this.resolutionWidth, this.resolutionHeight));
+        this._pointsTextureData.set(point, this._pointsDataIndex * ClipSpaceQuad.POSITION_COMPONENT_NUMBER);
+        const oldIndex = this._pointsDataIndex;
+        this._pointsDataIndex = (oldIndex + 1) % Heatmap.MAX_POINTS;
+        this._renderNode?.loadPoint(point, oldIndex);
         this.options.configChanged = true;
     }
 
@@ -79,11 +76,10 @@ export class Heatmap {
         if (!this._renderNode) {
             return;
         }
-        if (this.options.configChanged || this._viewportChanged || this._pointsChanged) {
+        if (this.options.configChanged || this._viewportChanged) {
             this.options.configChanged = false;
-            this._renderNode.drawScene(this._viewportChanged, this._pointsChanged);
+            this._renderNode.drawScene(this._viewportChanged);
             this._viewportChanged = false;
-            this._pointsChanged = false;
         }
     }
 
@@ -104,12 +100,6 @@ export class Heatmap {
         if (gl === null) {
             throw new Error('Unable to obtain a WebGL2 context');
         }
-        this._renderNode = new HeatmapRenderNode(
-            gl,
-            this.options,
-            this._pointsTextureData,
-            Heatmap.MAX_POINTS_WIDTH,
-            Heatmap.MAX_POINTS_HEIGHT,
-            this._heatGradient);
+        this._renderNode = new HeatmapRenderNode(gl, this.options, this._heatGradient, this._pointsTextureData);
     }
 }

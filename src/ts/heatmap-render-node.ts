@@ -25,10 +25,8 @@ export class HeatmapRenderNode {
     constructor(
         public readonly gl: WebGL2RenderingContext,
         private readonly _options: HeatmapOptions,
-        private readonly _pointsTextureData: Float32Array,
-        private readonly _pointsTextureWidth: number,
-        private readonly _pointsTextureHeight: number,
-        heatGradient: TexImageSource) {
+        heatGradient: TexImageSource,
+        pointsTextureData: Float32Array) {
         // Initialize a shader program; this is where all the lighting
         // for the vertices and so forth is established.
         this._shaderProgram = ShaderUtils.initializeShaderProgram(gl, VertexShaderSource, FragmentShaderSource);
@@ -71,6 +69,7 @@ export class HeatmapRenderNode {
             gl.FLOAT,
             1
         );
+        this._pointsTexture.loadFromArray(pointsTextureData, pointsTextureData.length / ClipSpaceQuad.POSITION_COMPONENT_NUMBER, 1);
 
         // Here's where we call the routine that builds all the
         // objects we'll be drawing.
@@ -81,12 +80,13 @@ export class HeatmapRenderNode {
         this.setPositionAttribute();
     }
 
-    public drawScene(adjustViewport: boolean, loadPoints: boolean): void {
+    public loadPoint(data: Float32Array, offset: number): void {
+        this._pointsTexture.loadFromPartialArray(data, offset, 0, 1, 1);
+    }
+
+    public drawScene(adjustViewport: boolean): void {
         if (adjustViewport) {
             this.gl.viewport(0, 0, this.gl.drawingBufferWidth, this.gl.drawingBufferHeight);
-        }
-        if (loadPoints) {
-            this._pointsTexture.loadFromArray(this._pointsTextureData, this._pointsTextureWidth, this._pointsTextureHeight);
         }
         // Clear the canvas before we start drawing on it.
         this.clearScene();
