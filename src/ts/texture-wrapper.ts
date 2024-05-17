@@ -43,15 +43,9 @@ export class TextureWrapper {
         this.texture = texture;
     }
 
-    public loadFormImage(imageSource: string): void {
-        // Asynchronously load an image
-        var image = new Image();
-        image.src = imageSource;
-        image.addEventListener('load', () => {
-            // Now that the image has loaded, copy it to the texture.
-            this._gl.bindTexture(this._target, this.texture);
-            this._gl.texImage2D(this._target, this._level, this._interalFormat, this._format, this._type, image);
-        }, { once: true });
+    public loadFormImageSource(image: TexImageSource): void {
+        this._gl.bindTexture(this._target, this.texture);
+        this._gl.texImage2D(this._target, this._level, this._interalFormat, this._format, this._type, image);
     }
 
     public loadFromArray(data: ArrayBufferView, width: number, height: number): void {
