@@ -28,12 +28,12 @@ export class ClipSpaceQuad {
 
         // Select the positionBuffer as the one to apply buffer
         // operations to from here out.
-        this._gl.bindBuffer(this._gl.ARRAY_BUFFER, this.positions);
+        _gl.bindBuffer(_gl.ARRAY_BUFFER, this.positions);
 
         // Now pass the list of positions into WebGL to build the
         // shape. We do this by creating a Float32Array from the
         // JavaScript array, then use it to fill the current buffer.
-        this._gl.bufferData(this._gl.ARRAY_BUFFER, this._vertices, this._gl.STATIC_DRAW);
+        _gl.bufferData(_gl.ARRAY_BUFFER, this._vertices, _gl.STATIC_DRAW);
     }
 
     public draw(): void {
