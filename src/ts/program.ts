@@ -5,6 +5,9 @@ export class Program {
 
     private readonly _display: HTMLCanvasElement;
     private readonly _heatmap: Heatmap;
+    private readonly _guiActions = {
+        restart: () => this.onRestart()
+    }
 
     private _scaleX: number;
     private _scaleY: number;
@@ -17,13 +20,13 @@ export class Program {
         this.calculateScale();
         this.initiaizeGUI();
         this._display.addEventListener('mousemove', this.onMouseMove, false);
-        this._display.addEventListener('touchmove', this.onTouchMove, false);
+        this._display.addEventListener('touchmove', this.onTouchMove, { capture: false, passive: true });
         window.addEventListener('resize', this.onResize, false);
     }
 
     public dispose() {
         this._display.removeEventListener('mousemove', this.onMouseMove, false);
-        this._display.removeEventListener('touchmove', this.onTouchMove, false);
+        this._display.removeEventListener('touchmove', this.onTouchMove, { capture: false });
         window.removeEventListener('resize', this.onResize, false);
         this._heatmap.dispose();
     }
@@ -42,15 +45,20 @@ export class Program {
                 width: 300,
             }
         );
-        gui.add(this._heatmap.options, 'pointSize', 0, 2, 0.01).name('Point Size');
-        gui.add(this._heatmap.options, 'pointRange', 0, 2, 0.01).name('Point Range');
-        gui.add(this._heatmap.options, 'heatMinimum', 0, 100, 0.1).name('Heat Minimum');
-        gui.add(this._heatmap.options, 'heatRange', 0, 1000, 0.1).name('Heat Range');
-        gui.add(this._heatmap.options, 'transparencyMinimum', 0, 100, 0.1).name('Transparency Minimum');
-        gui.add(this._heatmap.options, 'transparencyRange', 0, 1000, 0.1).name('Transparency Range');
-        gui.add(this._heatmap.options, 'transparencyStrength', 0, 1, 0.01).name('Transparency Strength');
-        gui.add(this._heatmap, 'resolutionWidth', 1, 512, 1).name('Resolution Width').onFinishChange(() => this.calculateScale());
-        gui.add(this._heatmap, 'resolutionHeight', 1, 512, 1).name('Resolution Height').onFinishChange(() => this.calculateScale());
+
+        const fileFolder = gui.addFolder('File').close();
+        fileFolder.add(this._heatmap.options.addPoints, 'pointSize', 0, 2, 0.01).name('Point Size');
+        fileFolder.add(this._heatmap.options.addPoints, 'pointRange', 0, 2, 0.01).name('Point Range');
+        fileFolder.add(this._heatmap.options.addPoints, 'resolutionWidth', 1, 4096, 1).name('Resolution Width');
+        fileFolder.add(this._heatmap.options.addPoints, 'resolutionHeight', 1, 4096, 1).name('Resolution Height');
+        fileFolder.add(this._guiActions, 'restart').name('New');
+
+        const editFolder = gui.addFolder('Edit');
+        editFolder.add(this._heatmap.options.color, 'heatMinimum', 0, 1000, 0.1).name('Heat Minimum');
+        editFolder.add(this._heatmap.options.color, 'heatRange', 0, 10000, 0.1).name('Heat Range');
+        editFolder.add(this._heatmap.options.color, 'transparencyMinimum', 0, 100, 0.1).name('Transparency Minimum');
+        editFolder.add(this._heatmap.options.color, 'transparencyRange', 0, 1000, 0.1).name('Transparency Range');
+        editFolder.add(this._heatmap.options.color, 'transparencyStrength', 0, 1, 0.01).name('Transparency Strength');
         return gui;
     }
 
@@ -58,22 +66,31 @@ export class Program {
         if (event.buttons === 0) {
             return;
         }
-        var rect = this._display.getBoundingClientRect(); // abs. size of element
-        this._heatmap.addPoint(
-            (event.clientX - rect.left) * this._scaleX,
-            (event.clientY - rect.top) * this._scaleY);
-        event.stopImmediatePropagation();
+        this.addPoint(event);
+        event.stopPropagation();
     }
 
     private onTouchMove = (event: TouchEvent): void => {
         if (event.touches.length < 1) {
             return;
         }
-        var rect = this._display.getBoundingClientRect(); // abs. size of element
+        this.addPoint(event.touches[0]);
+        event.stopPropagation();
+    }
+
+    private addPoint(point: Touch | MouseEvent): void {
+        var rect = this._display.getBoundingClientRect();
         this._heatmap.addPoint(
-            (event.touches[0].clientX - rect.left) * this._scaleX,
-            (event.touches[0].clientY - rect.top) * this._scaleY);
-        event.stopImmediatePropagation();
+            {
+                x: (point.clientX - rect.left) * this._scaleX,
+                y: (point.clientY - rect.top) * this._scaleY
+            }
+        );
+    }
+
+    private onRestart(): void {
+        this.calculateScale();
+        this._heatmap.restart();
     }
 
     private onResize = (): void => {
@@ -82,8 +99,8 @@ export class Program {
 
     private calculateScale(): void {
         var rect = this._display.getBoundingClientRect(); // abs. size of element
-        this._scaleX = this._heatmap.resolutionWidth / rect.width;  // relationship bitmap vs. element for x
-        this._scaleY = this._heatmap.resolutionHeight / rect.height;// relationship bitmap vs. element for y
+        this._scaleX = this._heatmap.options.addPoints.resolutionWidth / rect.width;  // relationship bitmap vs. element for x
+        this._scaleY = this._heatmap.options.addPoints.resolutionHeight / rect.height;// relationship bitmap vs. element for y
     }
 }
 

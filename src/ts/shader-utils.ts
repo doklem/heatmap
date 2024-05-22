@@ -1,10 +1,12 @@
+import { ClipSpaceQuad } from './clip-space-quad';
+
 export class ShaderUtils {
 
     /**
      * Initialize a shader program, so WebGL knows how to draw our data.
      */
-    public static initializeShaderProgram(gl: WebGL2RenderingContext, vertexShaderSource: string, fragmentShaderSource: string): WebGLProgram {
-        const vertexShader = ShaderUtils.loadShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+    public static initializeShaderProgram(gl: WebGL2RenderingContext, fragmentShaderSource: string): WebGLProgram {
+        const vertexShader = ShaderUtils.loadShader(gl, gl.VERTEX_SHADER, ClipSpaceQuad.VERTEX_SHADER_SOURCE);
         const fragmentShader = ShaderUtils.loadShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
 
         // Create the shader program  
