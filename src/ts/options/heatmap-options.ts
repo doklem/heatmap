@@ -1,7 +1,11 @@
-import { AddPointsRenderNodeOptions } from './add-points-render-node-options';
-import { ColorRenderNodeOptions } from './color-render-node-options';
+import { IncrementRenderNodeOptions } from './increment-render-node-options';
+import { ColoringRenderNodeOptions } from './coloring-render-node-options';
+import { DecrementRenderNodeOptions } from './decrement-render-node-options';
 
 export class HeatmapOptions {
-    public readonly addPoints = new AddPointsRenderNodeOptions();
-    public readonly color = new ColorRenderNodeOptions();
+    public readonly increment = new IncrementRenderNodeOptions();
+    public readonly coloring = new ColoringRenderNodeOptions();
+    public readonly decrement = new DecrementRenderNodeOptions();
+    public width = 1024;
+    public height = 1024;
 }

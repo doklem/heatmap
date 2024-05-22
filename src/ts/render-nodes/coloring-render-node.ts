@@ -1,43 +1,27 @@
-import FragmentShaderSource from './../../shaders/color-fragment.glsl';
+import FragmentShaderSource from './../../shaders/coloring-fragment.glsl';
 import { ClipSpaceQuad } from '../clip-space-quad';
 import { ShaderUtils } from '../shader-utils';
-import { TextureWrapper } from '../texture-wrapper';
 import { RenderNodeBase } from './render-node-base';
-import { ColorRenderNodeOptions } from '../options/color-render-node-options';
-import { AddPointsRenderNode } from './add-points-render-node';
+import { ColoringRenderNodeOptions } from '../options/coloring-render-node-options';
+import { TextureStore } from './texture-store';
 
-export class ColorRenderNode extends RenderNodeBase {
+export class ColoringRenderNode extends RenderNodeBase {
 
     private readonly _heatMinLocation: WebGLUniformLocation;
     private readonly _heatMaxLocation: WebGLUniformLocation;
     private readonly _alphaMinLocation: WebGLUniformLocation;
     private readonly _alphaMaxLocation: WebGLUniformLocation;
     private readonly _alphaStrengthLocation: WebGLUniformLocation;
-    private readonly _gradientTexture: TextureWrapper;
     private readonly _gradientTextureLocation: WebGLUniformLocation;
     private readonly _heatTextureLocation: WebGLUniformLocation;
-    
+
     protected readonly _shaderProgram: WebGLProgram;
 
     constructor(
         quad: ClipSpaceQuad,
-        private readonly _options: ColorRenderNodeOptions,
-        private readonly _heatRenderNode: AddPointsRenderNode,
-        heatGradient: TexImageSource) {
-        super(quad);
-
-        // Create the textures.
-        this._gradientTexture = new TextureWrapper(
-            this._gl,
-            this._gl.TEXTURE_2D,
-            this._gl.LINEAR,
-            this._gl.CLAMP_TO_EDGE,
-            0, // Use the base level, since we do not want to use mips.
-            this._gl.RGBA,
-            this._gl.RGBA,
-            this._gl.UNSIGNED_BYTE
-        );
-        this._gradientTexture.loadFormImageSource(heatGradient);
+        textures: TextureStore,
+        private readonly _options: ColoringRenderNodeOptions) {
+        super(quad, textures);
 
         // Initialize a shader program; this is where all the lighting
         // for the vertices and so forth is established.
@@ -62,7 +46,7 @@ export class ColorRenderNode extends RenderNodeBase {
 
     public draw(): void {
         // render to the canvas
-        this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, null);     
+        this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, null);
         // Tell WebGL how to convert from clip space to pixels
         this._gl.viewport(0, 0, this._gl.canvas.width, this._gl.canvas.height);
         // Clear the canvas before we start drawing on it.
@@ -81,8 +65,8 @@ export class ColorRenderNode extends RenderNodeBase {
         this._gl.uniform1f(this._alphaMinLocation, this._options.transparencyMinimum);
         this._gl.uniform1f(this._alphaMaxLocation, this._options.transparencyMinimum + this._options.transparencyRange);
         this._gl.uniform1f(this._alphaStrengthLocation, this._options.transparencyStrength);
-        this._heatRenderNode.outputTexture.setUniform(this._heatTextureLocation, this._gl.TEXTURE0);
-        this._gradientTexture.setUniform(this._gradientTextureLocation, this._gl.TEXTURE1);
+        this._textures.newHeatTexture.setUniform(this._heatTextureLocation, this._gl.TEXTURE0);
+        this._textures.gradientTexture.setUniform(this._gradientTextureLocation, this._gl.TEXTURE1);
     }
 
     private clearScene(): void {

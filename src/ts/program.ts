@@ -32,8 +32,8 @@ export class Program {
     }
 
     public main(): void {
-        requestAnimationFrame(() => {
-            this._heatmap.drawScene();
+        requestAnimationFrame((time: DOMHighResTimeStamp) => {
+            this._heatmap.drawScene(time);
             this.main();
         });
     }
@@ -47,18 +47,21 @@ export class Program {
         );
 
         const fileFolder = gui.addFolder('File').close();
-        fileFolder.add(this._heatmap.options.addPoints, 'pointSize', 0, 2, 0.01).name('Point Size');
-        fileFolder.add(this._heatmap.options.addPoints, 'pointRange', 0, 2, 0.01).name('Point Range');
-        fileFolder.add(this._heatmap.options.addPoints, 'resolutionWidth', 1, 4096, 1).name('Resolution Width');
-        fileFolder.add(this._heatmap.options.addPoints, 'resolutionHeight', 1, 4096, 1).name('Resolution Height');
+        fileFolder.add(this._heatmap.options.increment, 'pointSize', 0, 2, 0.01).name('Point Size');
+        fileFolder.add(this._heatmap.options.increment, 'pointRange', 0, 2, 0.01).name('Point Range');
+        fileFolder.add(this._heatmap.options.increment, 'heatMax', 0, 100000, 0.1).name('Heat Maximum');
+        fileFolder.add(this._heatmap.options, 'width', 1, 4096, 1).name('Width');
+        fileFolder.add(this._heatmap.options, 'height', 1, 4096, 1).name('Height');
         fileFolder.add(this._guiActions, 'restart').name('New');
 
         const editFolder = gui.addFolder('Edit');
-        editFolder.add(this._heatmap.options.color, 'heatMinimum', 0, 1000, 0.1).name('Heat Minimum');
-        editFolder.add(this._heatmap.options.color, 'heatRange', 0, 10000, 0.1).name('Heat Range');
-        editFolder.add(this._heatmap.options.color, 'transparencyMinimum', 0, 100, 0.1).name('Transparency Minimum');
-        editFolder.add(this._heatmap.options.color, 'transparencyRange', 0, 1000, 0.1).name('Transparency Range');
-        editFolder.add(this._heatmap.options.color, 'transparencyStrength', 0, 1, 0.01).name('Transparency Strength');
+        editFolder.add(this._heatmap.options.coloring, 'heatMinimum', 0, 1000, 0.1).name('Heat Minimum');
+        editFolder.add(this._heatmap.options.coloring, 'heatRange', 0, 10000, 0.1).name('Heat Range');
+        editFolder.add(this._heatmap.options.coloring, 'transparencyMinimum', 0, 100, 0.1).name('Transparency Minimum');
+        editFolder.add(this._heatmap.options.coloring, 'transparencyRange', 0, 1000, 0.1).name('Transparency Range');
+        editFolder.add(this._heatmap.options.coloring, 'transparencyStrength', 0, 1, 0.01).name('Transparency Strength');
+        editFolder.add(this._heatmap.options.decrement, 'step', 0, 1000, 0.01).name('Decrement Step');
+        editFolder.add(this._heatmap.options.decrement, 'cadence', 0, 1000, 0.01).name('Decrement Cadence (ms)');
         return gui;
     }
 
@@ -98,9 +101,9 @@ export class Program {
     }
 
     private calculateScale(): void {
-        var rect = this._display.getBoundingClientRect(); // abs. size of element
-        this._scaleX = this._heatmap.options.addPoints.resolutionWidth / rect.width;  // relationship bitmap vs. element for x
-        this._scaleY = this._heatmap.options.addPoints.resolutionHeight / rect.height;// relationship bitmap vs. element for y
+        var rect = this._display.getBoundingClientRect();
+        this._scaleX = this._heatmap.options.width / rect.width;
+        this._scaleY = this._heatmap.options.height / rect.height;
     }
 }
 

@@ -1,4 +1,4 @@
-export class ColorRenderNodeOptions {
+export class ColoringRenderNodeOptions {
 
     private _transparencyMinimum = 0;
     private _transparencyRange = 150;

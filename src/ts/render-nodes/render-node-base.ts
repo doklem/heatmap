@@ -1,4 +1,5 @@
 import { ClipSpaceQuad } from '../clip-space-quad';
+import { TextureStore } from './texture-store';
 
 export abstract class RenderNodeBase {
 
@@ -6,7 +7,9 @@ export abstract class RenderNodeBase {
 
     protected readonly _gl: WebGL2RenderingContext;
 
-    constructor(protected readonly _quad: ClipSpaceQuad) {
+    constructor(
+        protected readonly _quad: ClipSpaceQuad,
+        protected readonly _textures: TextureStore) {
         this._gl = _quad.gl;
     }
 
