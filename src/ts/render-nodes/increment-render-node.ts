@@ -12,8 +12,8 @@ export class IncrementRenderNode extends RenderNodeBase {
     private readonly _pointMinLocation: WebGLUniformLocation;
     private readonly _pointMaxLocation: WebGLUniformLocation;
     private readonly _heatMaxLocation: WebGLUniformLocation;
-    private readonly _framebuffer: WebGLFramebuffer;
     private readonly _heatTextureLocation: WebGLUniformLocation;
+    private readonly _framebuffer: WebGLFramebuffer;
 
     protected readonly _shaderProgram: WebGLProgram;
 
@@ -30,6 +30,7 @@ export class IncrementRenderNode extends RenderNodeBase {
         }
         this._framebuffer = framebuffer;
         this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, framebuffer);
+        this._gl.framebufferTexture2D(this._gl.FRAMEBUFFER, this._gl.COLOR_ATTACHMENT0, this._gl.TEXTURE_2D, this._textures.oldHeatTexture.texture, 0);
 
         // Initialize a shader program; this is where all the lighting
         // for the vertices and so forth is established.
@@ -59,7 +60,7 @@ export class IncrementRenderNode extends RenderNodeBase {
         // attach the output texture as the first color attachment
         this._gl.framebufferTexture2D(this._gl.FRAMEBUFFER, this._gl.COLOR_ATTACHMENT0, this._gl.TEXTURE_2D, this._textures.newHeatTexture.texture, 0);
         // Tell WebGL how to convert from clip space to pixels
-        this._gl.viewport(0, 0, this._textures.resolutionWidth, this._textures.resolutionHeight);
+        this._gl.viewport(0, 0, this._textures.width, this._textures.height);
         // Clear the attachment(s).
         this.clearScene();
         // Tell WebGL to use our program when drawing.
@@ -68,6 +69,12 @@ export class IncrementRenderNode extends RenderNodeBase {
         this.applyUniforms(pointsBatch);
         // Draw the scene.
         this._quad.draw();
+        // enable rendering to the canvas again
+        this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, null);
+    }
+
+    public readHeatTexture(data: Float32Array): void {
+        this._textures.readHeatTexture(this._framebuffer, data);
     }
 
     private applyUniforms(pointsBatch: Float32Array): void {

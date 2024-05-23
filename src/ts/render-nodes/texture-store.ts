@@ -20,8 +20,9 @@ export class TextureStore {
     constructor(
         gl: WebGL2RenderingContext,
         gradient: TexImageSource,
-        public readonly resolutionWidth: number,
-        public readonly resolutionHeight: number) {
+        heatData: Float32Array,
+        public readonly width: number,
+        public readonly height: number) {
         this._renderToPing = false;
 
         // Create the textures.
@@ -46,7 +47,7 @@ export class TextureStore {
             gl.RED,
             gl.FLOAT,
             1);
-        this._heatTexturePing.initializeEmpty(resolutionWidth, resolutionHeight);
+        this._heatTexturePing.loadFromArray(heatData, width, height);
         this._heatTexturePong = new TextureWrapper(
             gl,
             gl.TEXTURE_2D,
@@ -57,10 +58,14 @@ export class TextureStore {
             gl.RED,
             gl.FLOAT,
             1);
-        this._heatTexturePong.initializeEmpty(resolutionWidth, resolutionHeight);
+        this._heatTexturePong.loadFromArray(heatData, width, height);
     }
 
     public toggleHeatTexture(): void {
         this._renderToPing = !this._renderToPing;
+    }
+
+    public readHeatTexture(framebuffer: WebGLFramebuffer, data: Float32Array): void {
+        this.newHeatTexture.readFromFramebuffer(framebuffer, data, 0, 0, this.width, this.height);
     }
 }

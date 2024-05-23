@@ -45,8 +45,6 @@ export class ColoringRenderNode extends RenderNodeBase {
     }
 
     public draw(): void {
-        // render to the canvas
-        this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, null);
         // Tell WebGL how to convert from clip space to pixels
         this._gl.viewport(0, 0, this._gl.canvas.width, this._gl.canvas.height);
         // Clear the canvas before we start drawing on it.

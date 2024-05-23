@@ -19,6 +19,8 @@ export class Heatmap {
     private _coloringRenderNode?: ColoringRenderNode;
     private _decrementRenderNode?: DecrementRenderNode;
     private _lastDecrement: DOMHighResTimeStamp;
+    private _lastBackup: DOMHighResTimeStamp;
+    private _backup: Float32Array;
 
     public readonly options: HeatmapOptions;
 
@@ -26,6 +28,8 @@ export class Heatmap {
         this.options = new HeatmapOptions();
         this._newPoints = [];
         this._lastDecrement = 0;
+        this._lastBackup = 0;
+        this._backup = new Float32Array(this.options.width * this.options.height);
 
         // Start rendering after the heat gradient image is loaded.
         this._gradient = new Image();
@@ -58,7 +62,7 @@ export class Heatmap {
     }
 
     public drawScene(time: DOMHighResTimeStamp): void {
-        if (!this._coloringRenderNode || !this._incrementRenderNode || !this._decrementRenderNode) {
+        if (!this._textures || !this._coloringRenderNode || !this._incrementRenderNode || !this._decrementRenderNode) {
             return;
         }
         const doesDecrement = time - this._lastDecrement > this.options.decrement.cadence;
@@ -74,18 +78,18 @@ export class Heatmap {
             this.options.coloring.needsUpdate = false;
             this._coloringRenderNode.draw();
         }
+        if (time - this._lastBackup > this.options.backupCadence) {
+            this._incrementRenderNode.readHeatTexture(this._backup);
+            this._lastBackup = time;
+        }
     }
 
     public restart(): void {
         if (!this._quad) {
             return;
         }
-        this._lastDecrement = 0;
-        this.options.coloring.needsUpdate = true;
-        this._textures = new TextureStore(this._quad.gl, this._gradient, this.options.width, this.options.height);
-        this._incrementRenderNode = new IncrementRenderNode(this._quad, this._textures, this.options.increment);
-        this._coloringRenderNode = new ColoringRenderNode(this._quad, this._textures, this.options.coloring);
-        this._decrementRenderNode = new DecrementRenderNode(this._quad, this._textures, this.options.decrement);
+        this._backup = new Float32Array(this.options.width * this.options.height);
+        this.start(this._quad);
     }
 
     private onRenderContextLost = (event: Event): void => {
@@ -112,11 +116,17 @@ export class Heatmap {
         if (gl.getExtension('EXT_color_buffer_float') === null) {
             throw new Error('Unable to load renderbuffer float extension');
         }
-        this._lastDecrement = 0;
         this._quad = new ClipSpaceQuad(gl);
-        this._textures = new TextureStore(gl, this._gradient, this.options.width, this.options.height);
-        this._incrementRenderNode = new IncrementRenderNode(this._quad, this._textures, this.options.increment);
-        this._coloringRenderNode = new ColoringRenderNode(this._quad, this._textures, this.options.coloring);
-        this._decrementRenderNode = new DecrementRenderNode(this._quad, this._textures, this.options.decrement);
+        this.start(this._quad);
+    }
+
+    private start(quad: ClipSpaceQuad): void {
+        this._lastDecrement = performance.now();
+        this._lastBackup = performance.now();
+        this.options.coloring.needsUpdate = true;
+        this._textures = new TextureStore(quad.gl, this._gradient, this._backup, this.options.width, this.options.height);
+        this._incrementRenderNode = new IncrementRenderNode(quad, this._textures, this.options.increment);
+        this._coloringRenderNode = new ColoringRenderNode(quad, this._textures, this.options.coloring);
+        this._decrementRenderNode = new DecrementRenderNode(quad, this._textures, this.options.decrement);
     }
 }

@@ -62,6 +62,7 @@ export class Program {
         editFolder.add(this._heatmap.options.coloring, 'transparencyStrength', 0, 1, 0.01).name('Transparency Strength');
         editFolder.add(this._heatmap.options.decrement, 'step', 0, 1000, 0.01).name('Decrement Step');
         editFolder.add(this._heatmap.options.decrement, 'cadence', 0, 1000, 0.01).name('Decrement Cadence (ms)');
+        editFolder.add(this._heatmap.options, 'backupCadence', 0, 10000, 0.1).name('Backup Cadence (ms)');
         return gui;
     }
 
