@@ -8,5 +8,5 @@ export class HeatmapOptions {
     public readonly decrement = new DecrementRenderNodeOptions();
     public width = 1024;
     public height = 1024;
-    public backupCadence = 5000;
+    public backupCadence = 1000;
 }
