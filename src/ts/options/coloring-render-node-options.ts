@@ -1,10 +1,10 @@
 export class ColoringRenderNodeOptions {
 
     private _transparencyMinimum = 0;
-    private _transparencyRange = 100;
+    private _transparencyRange = 20;
     private _transparencyStrength = 1;
     private _heatMinimum = 1;
-    private _heatRange = 300;
+    private _heatRange = 150;
     
     public needsUpdate = true;
 
