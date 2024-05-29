@@ -1,7 +1,7 @@
 #version 300 es
 precision lowp float;
 
-uniform vec2 uPointsBatch[100];
+uniform vec2 uPointsBatch[1000];
 uniform int uPointsBatchSize;
 uniform float uPointMin;
 uniform float uPointMax;
