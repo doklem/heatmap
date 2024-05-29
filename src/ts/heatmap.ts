@@ -8,7 +8,7 @@ import { TextureStore } from './render-nodes/texture-store';
 
 export class Heatmap {
 
-    private static readonly POINTS_BATCH_MAX_SIZE = 100; //Needs to be the same as in the heat shader
+    public static readonly POINTS_BATCH_MAX_SIZE = 1000; //Needs to be the same as in the increment shader
 
     private readonly _gradient: HTMLImageElement;
     private readonly _newPoints: number[];
