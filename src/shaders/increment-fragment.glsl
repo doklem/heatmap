@@ -8,7 +8,7 @@ uniform float uPointMax;
 uniform float uHeatMax;
 uniform sampler2D uHeatTexture;
 
-in vec2 vPosition;
+in vec2 vUv;
 
 out vec4 outputColor;
 
@@ -18,9 +18,9 @@ float distanceSquare(vec2 pointA, vec2 pointB) {
 }
 
 void main(void) {
-    float heat = texture(uHeatTexture, (vPosition + 1.f) * 0.5f, 0.f).x;
+    float heat = texture(uHeatTexture, vUv, 0.f).x;
     for(int i = 0; i < uPointsBatchSize; i++) {
-        heat += 1.f - smoothstep(uPointMin, uPointMax, distanceSquare(vPosition, uPointsBatch[i]));
+        heat += 1.f - smoothstep(uPointMin, uPointMax, distanceSquare(vUv, uPointsBatch[i]));
     }
     outputColor = vec4(min(heat, uHeatMax), 0.f, 0.f, 0.f);
 }

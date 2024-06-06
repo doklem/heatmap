@@ -1,5 +1,4 @@
 import VertexShaderSource from './../shaders/vertex.glsl';
-import { IPoint } from './point';
 
 export class ClipSpaceQuad {
 
@@ -59,12 +58,5 @@ export class ClipSpaceQuad {
             0 // how many bytes inside the buffer to start from
         );
         this.gl.enableVertexAttribArray(_vertexPositionLocation);
-    }
-
-    public static toClipSpaceCoordinate(point: IPoint, viewportWidth: number, viewportHeight: number): IPoint {
-        return {
-            x: ClipSpaceQuad.CLIP_SPACE_MIN + point.x / viewportWidth * ClipSpaceQuad.CLIP_SPACE_RANGE,
-            y: ClipSpaceQuad.CLIP_SPACE_MAX - point.y / viewportHeight * ClipSpaceQuad.CLIP_SPACE_RANGE
-        };
     }
 }

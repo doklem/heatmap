@@ -21,7 +21,7 @@ export class Program {
     constructor() {
         this._agents = [];
         this._simulationDelay = 250;
-        this._maxSpeed = 20;
+        this._maxSpeed = 0.01;
         this._display = document.getElementById('display') as HTMLCanvasElement;
         this._stats = new Stats();
         this._stats.showPanel(0); // 0 -> fps
@@ -53,7 +53,7 @@ export class Program {
     public moveAgents(): void {
         this._agents.forEach((agent: Agent) => {
             agent.move();
-            this._heatmap.addPoint(agent.position);
+            this._heatmap.addUvPoint(agent.position.x, 1 - agent.position.y);
         });
         setTimeout(() => this.moveAgents(), this._simulationDelay);
     }
@@ -93,14 +93,11 @@ export class Program {
             .onFinishChange(() => {
                 for (let i = 0; i < this._agents.length; i++) {
                     if (!this._agents[i]) {
-                        this._agents[i] = new Agent(
-                            this._heatmap.options.width,
-                            this._heatmap.options.height,
-                            this._maxSpeed);
+                        this._agents[i] = new Agent(this._maxSpeed);
                     }
                 }
             });
-        simulationFolder.add(this, '_maxSpeed', 0.01, 100, 0.01).name('Max Speed')
+        simulationFolder.add(this, '_maxSpeed', 0.001, 1, 0.001).name('Max Speed')
             .onFinishChange(() => this._agents.forEach((agent: Agent) => agent.resetSpeed(this._maxSpeed)));
         simulationFolder.add(this, '_simulationDelay', 1, 10000, 1).name('Cadence (ms)');
         return gui;
@@ -124,11 +121,9 @@ export class Program {
 
     private addPoint(point: Touch | MouseEvent): void {
         var rect = this._display.getBoundingClientRect();
-        this._heatmap.addPoint(
-            {
-                x: (point.clientX - rect.left) * this._scaleX,
-                y: (point.clientY - rect.top) * this._scaleY
-            }
+        this._heatmap.addUvPoint(
+            (point.clientX - rect.left) * this._scaleX,
+            1 - (point.clientY - rect.top) * this._scaleY
         );
     }
 
@@ -143,8 +138,8 @@ export class Program {
 
     private calculateScale(): void {
         var rect = this._display.getBoundingClientRect();
-        this._scaleX = this._heatmap.options.width / rect.width;
-        this._scaleY = this._heatmap.options.height / rect.height;
+        this._scaleX = 1 / rect.width;
+        this._scaleY = 1 / rect.height;
     }
 }
 
