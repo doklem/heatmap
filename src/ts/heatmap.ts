@@ -1,6 +1,5 @@
 import { ClipSpaceQuad } from './clip-space-quad';
 import { HeatmapOptions } from './options/heatmap-options';
-import { IPoint } from './point';
 import { IncrementRenderNode } from './render-nodes/increment-render-node';
 import { ColoringRenderNode } from './render-nodes/coloring-render-node';
 import { DecrementRenderNode } from './render-nodes/decrement-render-node';
@@ -44,10 +43,9 @@ export class Heatmap {
             { once: true });
     }
 
-    public addPoint(point: IPoint): void {
-        const clipSpacePoint = ClipSpaceQuad.toClipSpaceCoordinate(point, this.options.width, this.options.height);
-        this._newPoints.push(clipSpacePoint.x);
-        this._newPoints.push(clipSpacePoint.y);
+    public addUvPoint(u: number, v: number): void {
+        this._newPoints.push(u);
+        this._newPoints.push(v);
     }
 
     public dispose(): void {
